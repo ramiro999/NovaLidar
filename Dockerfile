@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     python3-colcon-common-extensions \
     python3-rosdep \
     python3-vcstool \
+    time \
     git \
     && rm -rf /var/lib/apt/lists/*
 
@@ -16,8 +17,11 @@ WORKDIR /ros2_ws
 # Copiar el código fuente del proyecto al contenedor
 COPY . /ros2_ws
 
-# Instalar dependencias Python necesarias para el visualizador y debugpy
-RUN pip3 install --no-cache-dir foxglove-websocket debugpy
+# Instalar dependencias Python necesarias para el visualizador y Foxglove
+RUN pip3 install --no-cache-dir \
+    foxglove-websocket \
+    foxglove-client \
+    debugpy
 
 # Configurar el entorno de ROS2
 SHELL ["/bin/bash", "-c"]
