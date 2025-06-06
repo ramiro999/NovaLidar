@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Visor LAS con Cesium</title>
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.130/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.130/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    html, body, #cesiumContainer {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #dropZone {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: white;
+      border: 2px dashed #aaa;
+      padding: 20px;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+  <div id="dropZone">Arrastra tu archivo .las aquí</div>
+  <div id="cesiumContainer"></div>
+
+  <script src="main.js"></script>
+</body>
+</html>

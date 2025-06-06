@@ -10,7 +10,6 @@ import pprint
 import struct
 import open3d as o3d
 
-
 # Create a client instance
 client = Client(token="fox_sk_1dbfnSNxWmtT4cV82YCMA3lbQE3hcE3E")
 
