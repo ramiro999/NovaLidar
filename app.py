@@ -89,48 +89,99 @@ with gr.Blocks(theme=theme, css=custom_css) as demo:
         <div class="nova-title">Nova LiDAR</div>
         """)
 
-
     # Primer tab: Point Cloud
     with gr.Tab("Point Cloud"):
         gr.Markdown("## Point Cloud", elem_id="point-cloud-title")
-        gr.HTML(""" ...CSS y explicación... """)
+        gr.HTML("""
+            <style>
+            .nova-title {
+                font-size: 2em;
+                font-weight: bold;
+                text-align: center;
+            }
+            @media (prefers-color-scheme: dark) {
+                .nova-title {
+                color: white;
+                }
+            }
+            @media (prefers-color-scheme: light) {
+                .nova-title {
+                color: black;
+                }
+            }
+            </style>
+            <div>Representing point cloud data in plot</div>
+            """)
 
+        # Selector de dataset
+        # Procesar datos .las y .bag
         dataset_selection = gr.Radio(
-            ["Own data", ".pcd", ".bag"], label="Select Dataset", value="Own data", elem_id="model-selector"
+            ["Own data", ".las", ".bag"], label="Select Dataset", value="Own data", elem_id="model-selector"
         )
 
-        # Reemplaza dos imágenes por un solo archivo
-        file_input = gr.File(label="Upload Point Cloud File", file_types=[".pcd", ".bag", ".csv"])
+        # Seleccionar archivo de nube de puntos
+        file_input = gr.File(label="Upload Point Cloud File", file_types=[".las", ".bag",])
 
         run_button = gr.Button("Run Inference", elem_id="inference-button")
-        output_image = gr.Image(label="Disparity Map", visible=True, scale=1, elem_id="disparity-map", height="auto", width="100%")
+        point_cloud_output = gr.Plot(label="Point Cloud Visualization", visible=True, scale=1)
 
-        run_button.click(inputs=[file_input], outputs=output_image)
-
-        generate_depth_button = gr.Button("Generate Depth Map", elem_id="depth-button", scale=1)
-        depth_image = gr.Image(label="Depth Map", visible=True)
-
-        generate_depth_button.click(
-            inputs=[file_input, dataset_selection],
-            outputs=depth_image
-        )
-
+        run_button.click(inputs=[dataset_selection, file_input], outputs=point_cloud_output)
+        
     # Segundo tab: Data Analysis
     with gr.Tab("Data Analysis"):
         gr.Markdown("## Data Analysis", elem_id="data-analysis-title")
-        gr.HTML(""" ...CSS y explicación... """)
-        model_selector = gr.Radio(["RT-DETRv2", "YOLOv11"], label="Detection Model", value="RT-DETRv2", elem_id="model-selector")
+        gr.HTML("""
+            <style>
+            .nova-title {
+                font-size: 2em;
+                font-weight: bold;
+                text-align: center;
+            }
+            @media (prefers-color-scheme: dark) {
+                .nova-title {
+                color: white;
+                }
+            }
+            @media (prefers-color-scheme: light) {
+                .nova-title {
+                color: black;
+                }
+            }
+            </style>
+            <div>Data Analysis for IMU Sensor</div>
+            """)
+        
+        # Panel grafico para mostrar datos del sensor IMU
         run_button = gr.Button("Run Detection", elem_id="inference-button")
-        detect_output_image = gr.Plot(label="Object Detection", visible=True, scale=1)
-        cards_placeholder = gr.HTML(label="Detected Objects Info", visible=True)
-        run_button.click(inputs=[model_selector, dataset_selection], outputs=[detect_output_image, cards_placeholder])
+        detect_output_image = gr.Plot(label="iMU SENSOR", visible=True, scale=1)
+        #cards_placeholder = gr.HTML(label="mcap dataset lidar Info", visible=True)
+        run_button.click(inputs=[dataset_selection], outputs=[detect_output_image])
 
     # Tercer tab: Georeferencing
     with gr.Tab("Georeferencing"):
         gr.Markdown("## Georeferencing section", elem_id="georeferencing-title")
-        gr.HTML(""" ...CSS y explicación... """)
-        # Aquí van los sliders, dropdowns y botones para parámetros del vehículo y objetos detectados
-        # ...
-        # El botón ejecuta cálculo y muestra gráficos
+        gr.HTML("""
+            <style>
+            .nova-title {
+                font-size: 2em;
+                font-weight: bold;
+                text-align: center;
+            }
+            @media (prefers-color-scheme: dark) {
+                .nova-title {
+                color: white;
+                }
+            }
+            @media (prefers-color-scheme: light) {
+                .nova-title {
+                color: black;
+                }
+            }
+            </style>
+            <div class="nova-title">Georeferencing</div>
+            """)
+        # El botón ejecuta cálculo y la interfaz de cesium ion 
+        run_button = gr.Button("Run Georeferencing", elem_id="georeferencing-button")
+        cesium_output = gr.HTML(label="CesiumJS Viewer", visible=True, scale=1)
 
 demo.launch(share=True)
