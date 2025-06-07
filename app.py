@@ -200,4 +200,4 @@ with gr.Blocks(theme=theme, css=custom_css) as demo:
         run_button = gr.Button("Run Georeferencing", elem_id="georeferencing-button")
         #cesium_output = gr.HTML(label="CesiumJS Viewer", visible=True, scale=1)
 
-demo.launch(share=True)
+demo.launch()
