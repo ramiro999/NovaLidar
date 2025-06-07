@@ -128,8 +128,8 @@ with gr.Blocks(theme=theme, css=custom_css) as demo:
         run_button.click(inputs=[dataset_selection, file_input], outputs=point_cloud_output)
         
     # Segundo tab: Data Analysis
-    with gr.Tab("Data Analysis"):
-        gr.Markdown("## Data Analysis", elem_id="data-analysis-title")
+    with gr.Tab("Data Analysis For IMU Sensor"):
+        gr.Markdown("## Data Analysis For IMU Sensor", elem_id="data-analysis-title")
         gr.HTML("""
             <style>
             .nova-title {
