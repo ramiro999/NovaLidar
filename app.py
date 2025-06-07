@@ -45,7 +45,7 @@ with gr.Blocks(theme=theme, css=custom_css) as demo:
                 <li>🌍 Georeferences point clouds to integrate them with maps and precise navigation systems.</li>
             </ul>
 
-            <!-- GIF animado -->
+            <!-- Logo -->
             <div style="text-align: center; margin-top: 20px;">
                 <img src="https://i.ibb.co/PGsmFhyZ/Nova-Lidar-Logo-Verde-removebg-preview.png" alt="Near" style="width: 50%;">
             </div>
@@ -182,6 +182,6 @@ with gr.Blocks(theme=theme, css=custom_css) as demo:
             """)
         # El botón ejecuta cálculo y la interfaz de cesium ion 
         run_button = gr.Button("Run Georeferencing", elem_id="georeferencing-button")
-        cesium_output = gr.HTML(label="CesiumJS Viewer", visible=True, scale=1)
+        #cesium_output = gr.HTML(label="CesiumJS Viewer", visible=True, scale=1)
 
 demo.launch(share=True)
