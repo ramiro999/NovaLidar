@@ -5,6 +5,10 @@ import struct
 import open3d as o3d
 import gradio as gr
 import plotly.graph_objects as go
+import bagpy as bg
+import pandas as pd
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 # ======================
 # 1. Cargar datos LIDAR
