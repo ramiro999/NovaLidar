@@ -5,6 +5,7 @@ from gradio.themes.utils import colors, fonts, sizes
 from gradio.themes.citrus import Citrus
 import gradio as gr
 from gradio_modal import Modal
+from dataManagement.dataIMU import get_imu_data
 
 
 theme = gr.themes.Citrus()
@@ -30,11 +31,15 @@ with gr.Blocks(theme=theme, css=custom_css) as demo:
         ">  
         
             <div style="text-align: center; display: flex; justify-content: center; align-items: center; gap: 10px;">
-                <h1 style="margin: 0; font-size: 28px;">
-                    Welcome to <span style='color: #F29D0C;'>Nova LiDAR</span>
+                <h1 style="margin: 0; font-size: 40px;">
+                    Welcome to
                 </h1>
             </div>
-
+            <!-- Logo -->
+            <div style="text-align: center; margin-top: 20px; justify-content: center; align-items: center; gap: 10px;">
+                <img src="https://i.ibb.co/WWSHnpDy/Nova-Lidar-Logo-Citrus-Gris.png" alt="Near" style="width: 50%;">
+            </div>
+                
             <p style="font-size: 20px; margin-top: 15px;">
                 This application allows you to analyze, visualize, and georeference LiDAR point clouds to enhance environmental perception for autonomous vehicles.
             </p>
@@ -45,10 +50,7 @@ with gr.Blocks(theme=theme, css=custom_css) as demo:
                 <li>🌍 Georeferences point clouds to integrate them with maps and precise navigation systems.</li>
             </ul>
 
-            <!-- GIF animado -->
-            <div style="text-align: center; margin-top: 20px;">
-                <img src="https://i.ibb.co/PGsmFhyZ/Nova-Lidar-Logo-Verde-removebg-preview.png" alt="Near" style="width: 50%;">
-            </div>
+            
         </div>
 
         <style>
@@ -86,7 +88,10 @@ with gr.Blocks(theme=theme, css=custom_css) as demo:
             }
         }
         </style>
-        <div class="nova-title">Nova LiDAR</div>
+        <!-- Logo -->
+        <div style="text-align: center; margin-top: 20px; justify-content: center; align-items: center; gap: 10px;">
+            <img src="https://i.ibb.co/WWSHnpDy/Nova-Lidar-Logo-Citrus-Gris.png" alt="Near" style="width: 50%;">
+        </div>
         """)
 
     # Primer tab: Point Cloud
@@ -157,6 +162,17 @@ with gr.Blocks(theme=theme, css=custom_css) as demo:
         #cards_placeholder = gr.HTML(label="mcap dataset lidar Info", visible=True)
         run_button.click(inputs=[dataset_selection], outputs=[detect_output_image])
 
+        ########
+        # Tabla y gráfico para mostrar datos del IMU
+        run_button = gr.Button("Run Detection", elem_id="inference-button")
+        imu_table = gr.Dataframe(label="IMU Data", interactive=False)
+        imu_image = gr.Image(label="IMU Sensor Plot")
+        
+        # Función para mostrar los datos del IMU en tabla
+        def show_imu_data(dataset_selection):
+            tabla, imagen = get_imu_data()
+            return tabla, imagen
+        ########
     # Tercer tab: Georeferencing
     with gr.Tab("Georeferencing"):
         gr.Markdown("## Georeferencing section", elem_id="georeferencing-title")
@@ -182,6 +198,6 @@ with gr.Blocks(theme=theme, css=custom_css) as demo:
             """)
         # El botón ejecuta cálculo y la interfaz de cesium ion 
         run_button = gr.Button("Run Georeferencing", elem_id="georeferencing-button")
-        cesium_output = gr.HTML(label="CesiumJS Viewer", visible=True, scale=1)
+        #cesium_output = gr.HTML(label="CesiumJS Viewer", visible=True, scale=1)
 
 demo.launch(share=True)
