@@ -6,7 +6,7 @@ from gradio.themes.citrus import Citrus
 import gradio as gr
 from gradio_modal import Modal
 from dataManagement.dataIMU import get_imu_data
-
+from dataManagement.dataPointCloud import visualize_pointcloud_topic, get_pointcloud_topics, debug_bag_file
 
 theme = gr.themes.Citrus()
 custom_css = """
@@ -119,19 +119,44 @@ with gr.Blocks(theme=theme, css=custom_css) as demo:
             """)
 
         # Selector de dataset
-        # Procesar datos .las y .bag
         dataset_selection = gr.Radio(
             ["Own data", ".las", ".bag"], label="Select Dataset", value="Own data", elem_id="model-selector"
         )
 
         # Seleccionar archivo de nube de puntos
-        file_input = gr.File(label="Upload Point Cloud File", file_types=[".las", ".bag",])
+        file_input = gr.File(label="Upload Point Cloud File (.bag)", file_types=[".bag"])
 
-        run_button = gr.Button("Run Inference", elem_id="inference-button")
-        point_cloud_output = gr.Plot(label="Point Cloud Visualization", visible=True, scale=1)
-
-        run_button.click(inputs=[dataset_selection, file_input], outputs=point_cloud_output)
+        update_topics_btn = gr.Button("Load Topics")
         
+        debug_button = gr.Button("Debug Bag File")
+        debug_output = gr.Textbox(label="Debug Info", lines=10, interactive=False)
+
+        topic_dropdown = gr.Dropdown(label="Select PointCloud Topic", choices=[], value=None, interactive=True)
+        print("Dropdown choices:", topic_dropdown.choices)
+
+        visualize_button = gr.Button("Visualize Point Cloud")
+
+        point_cloud_output = gr.Plot(label="Point Cloud Visualization")
+
+        # Conexiones de eventos
+        update_topics_btn.click(
+            fn=get_pointcloud_topics, 
+            inputs=file_input, 
+            outputs=topic_dropdown
+        )
+        
+        debug_button.click(
+            fn=debug_bag_file,
+            inputs=file_input,
+            outputs=debug_output
+        )
+        
+        visualize_button.click(
+            fn=visualize_pointcloud_topic, 
+            inputs=[file_input, topic_dropdown], 
+            outputs=point_cloud_output
+        )
+
     # Segundo tab: Data Analysis
     with gr.Tab("Data Analysis For IMU Sensor"):
         gr.Markdown("## Data Analysis For IMU Sensor", elem_id="data-analysis-title")
@@ -156,15 +181,11 @@ with gr.Blocks(theme=theme, css=custom_css) as demo:
             <div>Data Analysis for IMU Sensor</div>
             """)
         
-        # Panel grafico para mostrar datos del sensor IMU
-        run_button = gr.Button("Run Detection", elem_id="inference-button")
-        detect_output_image = gr.Plot(label="iMU SENSOR", visible=True, scale=1)
-        #cards_placeholder = gr.HTML(label="mcap dataset lidar Info", visible=True)
-        run_button.click(inputs=[dataset_selection], outputs=[detect_output_image])
-
-        ########
+        # Panel gráfico para mostrar datos del sensor IMU
+        imu_run_button = gr.Button("Run IMU Analysis", elem_id="imu-inference-button")
+        detect_output_image = gr.Plot(label="IMU SENSOR", visible=True, scale=1)
+        
         # Tabla y gráfico para mostrar datos del IMU
-        run_button = gr.Button("Run Detection", elem_id="inference-button")
         imu_table = gr.Dataframe(label="IMU Data", interactive=False)
         imu_image = gr.Image(label="IMU Sensor Plot")
         
@@ -172,7 +193,14 @@ with gr.Blocks(theme=theme, css=custom_css) as demo:
         def show_imu_data(dataset_selection):
             tabla, imagen = get_imu_data()
             return tabla, imagen
-        ########
+            
+        # Conexión del evento IMU
+        imu_run_button.click(
+            fn=show_imu_data,
+            inputs=[dataset_selection], 
+            outputs=[imu_table, imu_image]
+        )
+
     # Tercer tab: Georeferencing
     with gr.Tab("Georeferencing"):
         gr.Markdown("## Georeferencing section", elem_id="georeferencing-title")
@@ -196,8 +224,10 @@ with gr.Blocks(theme=theme, css=custom_css) as demo:
             </style>
             <div class="nova-title">Georeferencing</div>
             """)
+        
         # El botón ejecuta cálculo y la interfaz de cesium ion 
-        run_button = gr.Button("Run Georeferencing", elem_id="georeferencing-button")
+        georef_run_button = gr.Button("Run Georeferencing", elem_id="georeferencing-button")
         #cesium_output = gr.HTML(label="CesiumJS Viewer", visible=True, scale=1)
 
-demo.launch()
+if __name__ == "__main__":
+    demo.launch()
