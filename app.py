@@ -178,14 +178,21 @@ with gr.Blocks(theme=theme, css=custom_css) as demo:
             <div>Data Analysis for IMU Sensor</div>
             """)
         
-        # Panel gráfico para mostrar datos del sensor IMU
-        imu_run_button = gr.Button("Run IMU Analysis", elem_id="imu-inference-button")
-        detect_output_image = gr.Plot(label="IMU SENSOR", visible=True, scale=1)
-        
+        #imu_run_button = gr.Button("Run IMU Analysis", elem_id="imu-inference-button")
+        #detect_output_image = gr.Plot(label="IMU SENSOR", visible=True, scale=1)
+
         # Tabla y gráfico para mostrar datos del IMU
+        #imu_table = gr.Dataframe(label="IMU Data", interactive=False)
+
+        # Por esto:
+        imu_file_input = gr.File(label="Upload IMU Data File (.bag)", file_types=[".bag"], visible=False)
+        imu_run_button = gr.Button("Analyze IMU Data", elem_id="imu-inference-button")
+
+        # Salidas
         imu_table = gr.Dataframe(label="IMU Data", interactive=False)
-        imu_image = gr.Image(label="IMU Sensor Plot")
-        
+        imu_plot = gr.Plot(label="IMU Sensor Analysis")
+        #imu_image = gr.Image(label="IMU Sensor Plot")
+
         # Función para mostrar los datos del IMU en tabla
         def show_imu_data(dataset_selection):
             tabla, imagen = get_imu_data()
@@ -195,7 +202,19 @@ with gr.Blocks(theme=theme, css=custom_css) as demo:
         imu_run_button.click(
             fn=show_imu_data,
             inputs=[dataset_selection], 
-            outputs=[imu_table, imu_image]
+            outputs=[imu_table]
+        )
+
+        # Función para procesar y mostrar datos IMU
+        def analyze_imu_data(bag_file):
+            df, fig = get_imu_data(bag_file)
+            return df, fig
+
+        # Conexión del evento IMU
+        imu_run_button.click(
+            fn=analyze_imu_data,
+            inputs=imu_file_input,
+            outputs=[imu_table, imu_plot]
         )
 
     # Tercer tab: Georeferencing

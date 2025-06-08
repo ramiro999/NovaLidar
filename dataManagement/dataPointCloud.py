@@ -68,8 +68,8 @@ def visualize_pointcloud_topic(bag_file, selected_topic: str):
             return create_empty_plot(f"No se pudieron extraer puntos del topic {selected_topic}")
         
         # Submuestrear si hay demasiados puntos
-        if len(points_x) > 10000:
-            indices = np.random.choice(len(points_x), 10000, replace=False)
+        if len(points_x) > 1000000:
+            indices = np.random.choice(len(points_x), 1000000, replace=False)
             points_x = [points_x[i] for i in indices]
             points_y = [points_y[i] for i in indices]
             points_z = [points_z[i] for i in indices]
