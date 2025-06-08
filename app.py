@@ -126,34 +126,31 @@ with gr.Blocks(theme=theme, css=custom_css) as demo:
         # Seleccionar archivo de nube de puntos
         file_input = gr.File(label="Upload Point Cloud File (.bag)", file_types=[".bag"])
 
-        update_topics_btn = gr.Button("Load Topics")
-        
+        update_topics_btn = gr.Button("Load Point Cloud Topics")
         debug_button = gr.Button("Debug Bag File")
         debug_output = gr.Textbox(label="Debug Info", lines=10, interactive=False)
-
-        topic_dropdown = gr.Dropdown(label="Select PointCloud Topic", choices=[], value=None, interactive=True)
-        print("Dropdown choices:", topic_dropdown.choices)
+        selected_topic = gr.State()  # Estado oculto para almacenar el topic seleccionado
 
         visualize_button = gr.Button("Visualize Point Cloud")
 
         point_cloud_output = gr.Plot(label="Point Cloud Visualization")
 
         # Conexiones de eventos
-        update_topics_btn.click(
-            fn=get_pointcloud_topics, 
-            inputs=file_input, 
-            outputs=topic_dropdown
-        )
-        
         debug_button.click(
             fn=debug_bag_file,
             inputs=file_input,
             outputs=debug_output
         )
-        
+
+        update_topics_btn.click(
+            fn=get_pointcloud_topics, 
+            inputs=file_input, 
+            outputs=[selected_topic, debug_output]
+        )
+
         visualize_button.click(
             fn=visualize_pointcloud_topic, 
-            inputs=[file_input, topic_dropdown], 
+            inputs=[file_input, selected_topic], 
             outputs=point_cloud_output
         )
 
