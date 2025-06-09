@@ -4,356 +4,251 @@ import numpy as np
 import bagpy
 from bagpy import bagreader
 import tempfile
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple
 import folium
-from folium import plugins
 import logging
 
-# Configurar logging
-logging.basicConfig(level=logging.INFO)
+# Configurar logging básico
+logging.basicConfig(level=logging.WARNING)  # Reducir logging para velocidad
 logger = logging.getLogger(__name__)
 
 def get_gps_data(bag_file=None, topic_name=None):
     """
-    Extrae y procesa datos GPS de un archivo .bag
-    
-    Args:
-        bag_file: Archivo .bag con datos GPS
-        topic_name: Nombre del topic GPS (opcional)
-        
-    Returns:
-        Tuple[pd.DataFrame, str]: DataFrame con datos GPS y ruta del mapa HTML
+    Extrae y procesa datos GPS de un archivo .bag - VERSIÓN OPTIMIZADA
     """
     if bag_file is None:
         return pd.DataFrame(), "No file provided."
 
     try:
         bag_path = bag_file.name if hasattr(bag_file, 'name') else bag_file
-        logger.info(f"Processing bag file: {bag_path}")
-        
         b = bagreader(bag_path)
 
         # Buscar topic GPS
         if topic_name:
             topic_table = b.topic_table
             if topic_name not in topic_table['Topics'].values:
-                logger.warning(f"Topic {topic_name} not found in bag file")
-                return pd.DataFrame(), f"Topic '{topic_name}' not found in bag file."
+                return pd.DataFrame(), f"Topic '{topic_name}' not found."
             gps_topic = topic_name
         else:
-            gps_topic = find_gps_topic(b.topic_table)
+            gps_topic = find_gps_topic_fast(b.topic_table)
             if not gps_topic:
-                logger.warning("No GPS topic found in bag file")
-                return pd.DataFrame(), "No GPS topic found in bag file."
-
-        logger.info(f"Using GPS topic: {gps_topic}")
+                return pd.DataFrame(), "No GPS topic found."
         
         # Extraer mensajes GPS
         gps_csv = b.message_by_topic(gps_topic)
         gps_df = pd.read_csv(gps_csv)
         
-        return process_gps_dataframe(gps_df)
+        return process_gps_dataframe_fast(gps_df)
 
     except Exception as e:
-        logger.error(f"Error processing GPS data: {str(e)}")
         return pd.DataFrame(), f"Error: {str(e)}"
 
-def find_gps_topic(topic_table) -> Optional[str]:
+def find_gps_topic_fast(topic_table) -> Optional[str]:
     """
-    Encuentra automáticamente el topic GPS en la tabla de topics
-    
-    Args:
-        topic_table: Tabla de topics del archivo bag
-        
-    Returns:
-        Optional[str]: Nombre del topic GPS encontrado
+    Búsqueda rápida de topic GPS
     """
-    gps_patterns = [
-        'sensor_msgs/NavSatFix',
-        'NavSatFix',
-        'gps',
-        'gnss',
-        'fix'
-    ]
+    # Patrones más específicos y ordenados por probabilidad
+    priority_patterns = ['NavSatFix', 'gps/fix', 'gnss']
     
-    for _, row in topic_table.iterrows():
-        topic_name = row['Topics'].lower()
-        topic_type = str(row['Types']).lower()
-        
-        # Buscar patrones en el tipo de mensaje
-        for pattern in gps_patterns:
-            if pattern.lower() in topic_type or pattern.lower() in topic_name:
-                logger.info(f"Found GPS topic: {row['Topics']} (Type: {row['Types']})")
+    for pattern in priority_patterns:
+        for _, row in topic_table.iterrows():
+            if pattern in str(row['Types']) or pattern in str(row['Topics']):
                 return row['Topics']
+    
+    # Búsqueda secundaria más general
+    for _, row in topic_table.iterrows():
+        topic_lower = str(row['Topics']).lower()
+        type_lower = str(row['Types']).lower()
+        if any(keyword in topic_lower or keyword in type_lower 
+               for keyword in ['gps', 'fix', 'nav']):
+            return row['Topics']
     
     return None
 
-def process_gps_dataframe(gps_df: pd.DataFrame) -> Tuple[pd.DataFrame, str]:
+def process_gps_dataframe_fast(gps_df: pd.DataFrame) -> Tuple[pd.DataFrame, str]:
     """
-    Procesa el DataFrame de datos GPS y crea visualización en mapa
-    
-    Args:
-        gps_df: DataFrame con datos GPS en bruto
-        
-    Returns:
-        Tuple[pd.DataFrame, str]: DataFrame procesado y ruta del mapa HTML
+    Procesamiento rápido del DataFrame GPS
     """
     try:
-        # Normalizar nombres de columnas
-        column_mapping = {
-            'latitude': 'Latitude',
-            'longitude': 'Longitude', 
-            'altitude': 'Altitude',
-            'lat': 'Latitude',
-            'lon': 'Longitude',
-            'lng': 'Longitude',
-            'alt': 'Altitude'
-        }
+        # Normalizar nombres de columnas - solo las más comunes
+        if 'latitude' in gps_df.columns:
+            gps_df.rename(columns={'latitude': 'Latitude'}, inplace=True)
+        if 'longitude' in gps_df.columns:
+            gps_df.rename(columns={'longitude': 'Longitude'}, inplace=True)
+        if 'altitude' in gps_df.columns:
+            gps_df.rename(columns={'altitude': 'Altitude'}, inplace=True)
         
-        gps_df.rename(columns=column_mapping, inplace=True)
+        # Verificar columnas requeridas
+        if 'Latitude' not in gps_df.columns or 'Longitude' not in gps_df.columns:
+            return pd.DataFrame(), "Missing GPS coordinates columns."
         
-        # Verificar que tenemos las columnas necesarias
-        required_cols = ['Latitude', 'Longitude']
-        missing_cols = [col for col in required_cols if col not in gps_df.columns]
-        
-        if missing_cols:
-            logger.error(f"Missing required columns: {missing_cols}")
-            return pd.DataFrame(), f"Missing required GPS columns: {missing_cols}"
-        
-        # Filtrar coordenadas válidas
-        initial_count = len(gps_df)
-        gps_df = gps_df[
+        # Filtrado rápido - solo validaciones esenciales
+        mask = (
             (gps_df['Latitude'].between(-90, 90)) & 
             (gps_df['Longitude'].between(-180, 180)) &
-            (gps_df['Latitude'] != 0) &  # Eliminar coordenadas (0,0)
+            (gps_df['Latitude'] != 0) &
             (gps_df['Longitude'] != 0)
-        ]
-        
-        # Eliminar duplicados
-        gps_df = gps_df.drop_duplicates(subset=['Latitude', 'Longitude'])
-        
-        filtered_count = len(gps_df)
-        logger.info(f"Filtered GPS data: {initial_count} -> {filtered_count} points")
+        )
+        gps_df = gps_df[mask]
 
         if gps_df.empty:
-            return pd.DataFrame(), "No valid GPS coordinates found."
+            return pd.DataFrame(), "No valid GPS coordinates."
 
-        # Crear mapa interactivo
-        map_path = create_enhanced_map(gps_df)
+        # Submuestreo si hay demasiados puntos (para velocidad)
+        if len(gps_df) > 1000:
+            # Tomar cada n-ésimo punto para mantener la forma general
+            step = len(gps_df) // 500  # Máximo 500 puntos
+            gps_df = gps_df.iloc[::step].copy()
         
-        # Agregar columnas útiles
-        gps_df = add_derived_columns(gps_df)
+        # Eliminar duplicados consecutivos rápidamente
+        gps_df = gps_df.drop_duplicates(subset=['Latitude', 'Longitude'], keep='first')
+        
+        # Crear mapa simple y rápido
+        map_path = create_fast_map(gps_df)
+        
+        # Agregar solo información básica
+        gps_df = add_basic_info(gps_df)
         
         return gps_df, map_path
 
     except Exception as e:
-        logger.error(f"Error processing GPS dataframe: {str(e)}")
         return pd.DataFrame(), f"Error processing GPS data: {str(e)}"
 
-def add_derived_columns(gps_df: pd.DataFrame) -> pd.DataFrame:
+def add_basic_info(gps_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Agrega columnas derivadas útiles al DataFrame GPS
-    
-    Args:
-        gps_df: DataFrame con datos GPS básicos
-        
-    Returns:
-        pd.DataFrame: DataFrame con columnas adicionales
+    Agregar solo información básica para velocidad
     """
     df = gps_df.copy()
-    
-    # Agregar índice de punto
     df['Point_ID'] = range(1, len(df) + 1)
     
-    # Calcular distancias entre puntos consecutivos
-    if len(df) > 1:
-        distances = []
-        for i in range(len(df)):
-            if i == 0:
-                distances.append(0.0)
-            else:
-                dist = calculate_haversine_distance(
-                    df.iloc[i-1]['Latitude'], df.iloc[i-1]['Longitude'],
-                    df.iloc[i]['Latitude'], df.iloc[i]['Longitude']
-                )
-                distances.append(dist)
-        df['Distance_m'] = distances
-        df['Cumulative_Distance_m'] = df['Distance_m'].cumsum()
-    
-    # Reordenar columnas
-    column_order = ['Point_ID', 'Latitude', 'Longitude']
+    # Solo reordenar columnas básicas
+    basic_cols = ['Point_ID', 'Latitude', 'Longitude']
     if 'Altitude' in df.columns:
-        column_order.append('Altitude')
-    if 'Distance_m' in df.columns:
-        column_order.extend(['Distance_m', 'Cumulative_Distance_m'])
+        basic_cols.append('Altitude')
     
-    # Agregar columnas restantes
-    remaining_cols = [col for col in df.columns if col not in column_order]
-    column_order.extend(remaining_cols)
+    # Mantener otras columnas al final
+    other_cols = [col for col in df.columns if col not in basic_cols]
+    final_cols = basic_cols + other_cols
     
-    return df[column_order]
+    return df[final_cols]
 
-def calculate_haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+def create_fast_map(gps_df: pd.DataFrame) -> str:
     """
-    Calcula la distancia entre dos puntos GPS usando la fórmula de Haversine
-    
-    Args:
-        lat1, lon1: Coordenadas del primer punto
-        lat2, lon2: Coordenadas del segundo punto
-        
-    Returns:
-        float: Distancia en metros
-    """
-    R = 6371000  # Radio de la Tierra en metros
-    
-    lat1_rad = np.radians(lat1)
-    lat2_rad = np.radians(lat2)
-    delta_lat = np.radians(lat2 - lat1)
-    delta_lon = np.radians(lon2 - lon1)
-    
-    a = (np.sin(delta_lat/2)**2 + 
-         np.cos(lat1_rad) * np.cos(lat2_rad) * np.sin(delta_lon/2)**2)
-    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1-a))
-    
-    return R * c
-
-def create_enhanced_map(gps_df: pd.DataFrame) -> str:
-    """
-    Crea un mapa interactivo mejorado con la trayectoria GPS
-    
-    Args:
-        gps_df: DataFrame con datos GPS procesados
-        
-    Returns:
-        str: Ruta del archivo HTML del mapa
+    Crear mapa básico y rápido
     """
     try:
-        # Calcular centro del mapa
+        # Calcular centro
         center_lat = gps_df['Latitude'].mean()
         center_lon = gps_df['Longitude'].mean()
         
-        # Crear mapa base
+        # Crear mapa simple
         m = folium.Map(
             location=[center_lat, center_lon],
-            zoom_start=17,
+            zoom_start=16,
             tiles='OpenStreetMap'
         )
         
-        # Agregar capas de mapa adicionales
-        folium.TileLayer('Stamen Terrain').add_to(m)
-        folium.TileLayer('CartoDB positron').add_to(m)
-        
-        # Preparar coordenadas para el polígono
+        # Coordenadas para polígono - usar menos puntos si es necesario
         coords = list(zip(gps_df['Latitude'], gps_df['Longitude']))
         
-        # Crear polígono del área recorrida
+        # Si hay muchos puntos, simplificar el polígono
+        if len(coords) > 100:
+            # Tomar cada n-ésimo punto para el polígono
+            step = max(1, len(coords) // 50)
+            coords = coords[::step]
+        
+        # Polígono simple
         folium.Polygon(
             locations=coords,
             color='purple',
             fill=True,
             fill_color='purple',
             fill_opacity=0.3,
-            weight=3,
-            popup=f'Área recorrida<br>Puntos: {len(coords)}<br>Área aprox: {calculate_polygon_area(coords):.1f} m²'
+            weight=2,
+            popup=f'Área recorrida - {len(gps_df)} puntos GPS'
         ).add_to(m)
         
-        # Agregar línea de trayectoria
+        # Línea de trayectoria
         folium.PolyLine(
             locations=coords,
             color='red',
             weight=2,
-            opacity=0.8,
-            popup='Trayectoria GPS'
+            opacity=0.8
         ).add_to(m)
         
-        # Agregar marcadores de inicio y fin
-        if len(coords) > 0:
-            # Punto de inicio
+        # Solo marcadores de inicio y fin si hay suficientes puntos
+        if len(coords) > 1:
             folium.Marker(
                 coords[0],
-                popup='Inicio de trayectoria',
+                popup='Inicio',
                 icon=folium.Icon(color='green', icon='play')
             ).add_to(m)
             
-            # Punto final
-            if len(coords) > 1:
-                folium.Marker(
-                    coords[-1],
-                    popup='Final de trayectoria', 
-                    icon=folium.Icon(color='red', icon='stop')
-                ).add_to(m)
-        
-        # Agregar mapa de calor de densidad de puntos
-        heat_data = [[row['Latitude'], row['Longitude']] for _, row in gps_df.iterrows()]
-        plugins.HeatMap(heat_data, radius=15, blur=10, max_zoom=1).add_to(m)
-        
-        # Agregar control de capas
-        folium.LayerControl().add_to(m)
-        
-        # Agregar plugin de medición
-        plugins.MeasureControl().add_to(m)
+            folium.Marker(
+                coords[-1],
+                popup='Final',
+                icon=folium.Icon(color='red', icon='stop')
+            ).add_to(m)
         
         # Guardar mapa
-        map_path = os.path.join(tempfile.gettempdir(), "enhanced_gps_map.html")
+        map_path = os.path.join(tempfile.gettempdir(), "fast_gps_map.html")
         m.save(map_path)
         
-        logger.info(f"Map saved to: {map_path}")
         return map_path
         
     except Exception as e:
         logger.error(f"Error creating map: {str(e)}")
-        # Crear mapa básico como fallback
-        return create_basic_map(gps_df)
+        return create_minimal_map(gps_df)
 
-def create_basic_map(gps_df: pd.DataFrame) -> str:
+def create_minimal_map(gps_df: pd.DataFrame) -> str:
     """
-    Crear mapa básico como fallback
+    Mapa mínimo como último recurso
     """
-    center_lat = gps_df['Latitude'].mean()
-    center_lon = gps_df['Longitude'].mean()
-    coords = list(zip(gps_df['Latitude'], gps_df['Longitude']))
-    
-    m = folium.Map(location=[center_lat, center_lon], zoom_start=17)
-    folium.Polygon(
-        locations=coords,
-        color='purple',
-        fill=True,
-        fill_color='purple',
-        fill_opacity=0.4,
-        weight=2,
-        popup='Área recorrida'
-    ).add_to(m)
-    
-    map_path = os.path.join(tempfile.gettempdir(), "basic_gps_map.html")
-    m.save(map_path)
-    return map_path
-
-def calculate_polygon_area(coords: List[Tuple[float, float]]) -> float:
-    """
-    Calcula el área aproximada de un polígono usando coordenadas GPS
-    
-    Args:
-        coords: Lista de tuplas (lat, lon)
+    try:
+        center_lat = gps_df['Latitude'].mean()
+        center_lon = gps_df['Longitude'].mean()
         
-    Returns:
-        float: Área en metros cuadrados
+        m = folium.Map(location=[center_lat, center_lon], zoom_start=15)
+        
+        # Solo algunos puntos para el polígono
+        coords = list(zip(gps_df['Latitude'], gps_df['Longitude']))
+        if len(coords) > 20:
+            coords = coords[::len(coords)//10]  # Máximo 10 puntos
+        
+        folium.Polygon(
+            locations=coords,
+            color='blue',
+            fill=True,
+            fill_opacity=0.2,
+            popup='Área GPS'
+        ).add_to(m)
+        
+        map_path = os.path.join(tempfile.gettempdir(), "minimal_gps_map.html")
+        m.save(map_path)
+        return map_path
+        
+    except:
+        # Crear archivo HTML vacío como último recurso
+        map_path = os.path.join(tempfile.gettempdir(), "empty_map.html")
+        with open(map_path, 'w') as f:
+            f.write("<html><body><h3>Error creating map</h3></body></html>")
+        return map_path
+
+def calculate_approximate_area_fast(gps_df: pd.DataFrame) -> float:
     """
-    if len(coords) < 3:
+    Cálculo rápido de área aproximada
+    """
+    if len(gps_df) < 3:
         return 0.0
     
-    # Usar fórmula del área del polígono en coordenadas esféricas (aproximación)
-    area = 0.0
-    n = len(coords)
-    
-    for i in range(n):
-        j = (i + 1) % n
-        area += coords[i][1] * coords[j][0]
-        area -= coords[j][1] * coords[i][0]
-    
-    area = abs(area) / 2.0
-    
-    # Convertir de grados cuadrados a metros cuadrados (aproximación)
-    # 1 grado ≈ 111 km en el ecuador
-    area_m2 = area * (111000 ** 2)
-    
-    return area_m2
+    try:
+        lat_range = gps_df['Latitude'].max() - gps_df['Latitude'].min()
+        lon_range = gps_df['Longitude'].max() - gps_df['Longitude'].min()
+        
+        # Conversión simple a metros
+        lat_meters = lat_range * 111000
+        lon_meters = lon_range * 111000 * np.cos(np.radians(gps_df['Latitude'].mean()))
+        
+        return abs(lat_meters * lon_meters)
+    except:
+        return 0.0
